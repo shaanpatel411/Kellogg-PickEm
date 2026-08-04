@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
+@theme {
+  --color-purple-900: #3a1b61;
+  --color-purple-700: #4F2582;
+  --color-purple-500: #6b3ba8;
+  --color-purple-300: #a684cc;
+  --color-purple-100: #e7defa;
+
+  --color-gray-11: #4A4A4A;
+  --color-gray-9: #666666;
+  --color-gray-4: #CACACA;
+  --color-gray-1: #EAEAEA;
+
+  --color-green: #008656;
+  --color-green-light: #e2f3ea;
+  --color-gold: #EBAA20;
+  --color-gold-light: #fdf1dc;
+  --color-red: #E94F3D;
+  --color-red-light: #fdeae7;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular;
+
+  --radius-pill: 999px;
+  --radius-card: 10px;
+  --radius-panel: 16px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --surface-page: #faf9fb;
+  --surface-card: #ffffff;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--surface-page);
 }
