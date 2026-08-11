@@ -49,3 +49,7 @@ export const TEAM_SHORT_NAMES: Record<string, string> = {
 export function toTeamCode(fullName: string): string {
   return TEAM_CODES[fullName] ?? fullName.slice(0, 3).toUpperCase()
 }
+
+export function teamLogoUrl(code: string): string {
+  return `https://a.espncdn.com/i/teamlogos/nfl/500/${code.toLowerCase()}.png`
+}
