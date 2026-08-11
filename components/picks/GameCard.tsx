@@ -1,5 +1,6 @@
 'use client'
 import { StatusPill } from '@/components/ui/StatusPill'
+import { teamLogoUrl } from '@/lib/teams'
 
 export interface Pick {
   game_id: string
@@ -60,7 +61,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
     : null
 
   function getSideStyle(teamCode: string): string {
-    const base = 'flex-1 flex flex-col items-center justify-center py-2.5 px-1.5 gap-0.5'
+    const base = 'flex-1 flex flex-col items-center justify-center py-2.5 px-1.5'
     if (!hasSpread) return `${base} opacity-40 cursor-default`
     if (isGraded) {
       if (pick!.picked_team === teamCode) {
@@ -108,11 +109,16 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
         className={getSideStyle(game.away_team)}
         onClick={() => handleSideTap(game.away_team)}
       >
-        <span className={`text-[18px] font-black leading-none ${textColor(isAwayPicked, isGraded)}`}>
+        <img
+          src={teamLogoUrl(game.away_team)}
+          alt={game.away_team}
+          width={44}
+          height={44}
+          className="object-contain"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+        <span className={`text-[12px] font-extrabold leading-none ${textColor(isAwayPicked, isGraded)}`}>
           {game.away_team}
-        </span>
-        <span className={`text-[10px] ${isAwayPicked ? 'text-white/70' : 'text-gray-9'}`}>
-          {game.away_team_full}
         </span>
         <span className={`text-[12px] font-semibold font-mono mt-0.5 ${
           isAwayPicked ? 'text-white/85' : 'text-purple-700'
@@ -147,11 +153,16 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
         className={getSideStyle(game.home_team)}
         onClick={() => handleSideTap(game.home_team)}
       >
-        <span className={`text-[18px] font-black leading-none ${textColor(isHomePicked, isGraded)}`}>
+        <img
+          src={teamLogoUrl(game.home_team)}
+          alt={game.home_team}
+          width={44}
+          height={44}
+          className="object-contain"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+        <span className={`text-[12px] font-extrabold leading-none ${textColor(isHomePicked, isGraded)}`}>
           {game.home_team}
-        </span>
-        <span className={`text-[10px] ${isHomePicked ? 'text-white/70' : 'text-gray-9'}`}>
-          {game.home_team_full}
         </span>
         <span className={`text-[12px] font-semibold font-mono mt-0.5 ${
           isHomePicked ? 'text-white/85' : 'text-purple-700'
