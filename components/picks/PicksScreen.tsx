@@ -92,7 +92,7 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
   const atPickLimit = pickCount >= 5
 
   return (
-    <div className="max-w-[430px] mx-auto min-h-screen flex flex-col">
+    <div className="w-full max-w-[430px] mx-auto min-h-screen flex flex-col">
       <PicksHeader
         weekNumber={currentWeek?.week_number ?? 0}
         seasonYear={currentWeek?.season_year ?? new Date().getFullYear()}

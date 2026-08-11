@@ -15,7 +15,7 @@ export default async function PicksPage() {
 
   if (!weeks || weeks.length === 0) {
     return (
-      <main className="max-w-[430px] mx-auto p-6">
+      <main className="w-full max-w-[430px] mx-auto p-6">
         <p className="text-purple-700 font-bold text-sm">NFL 2025</p>
         <h1 className="text-2xl font-black mt-1 mb-4">Kellogg Pick&apos;Em</h1>
         <p className="text-gray-9 text-sm">
