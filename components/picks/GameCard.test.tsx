@@ -38,9 +38,9 @@ describe('GameCard team logos', () => {
     const imgs = container.querySelectorAll('img')
     expect(imgs).toHaveLength(2)
     expect(imgs[0].src).toBe('https://a.espncdn.com/i/teamlogos/nfl/500/ne.png')
-    expect(imgs[0].alt).toBe('NE')
+    expect(imgs[0].alt).toBe('')
     expect(imgs[1].src).toBe('https://a.espncdn.com/i/teamlogos/nfl/500/sea.png')
-    expect(imgs[1].alt).toBe('SEA')
+    expect(imgs[1].alt).toBe('')
   })
 
   it('hides a logo image if it fails to load', () => {

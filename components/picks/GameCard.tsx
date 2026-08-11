@@ -111,10 +111,12 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
       >
         <img
           src={teamLogoUrl(game.away_team)}
-          alt={game.away_team}
+          alt=""
           width={44}
           height={44}
-          className="object-contain"
+          loading="lazy"
+          decoding="async"
+          className="w-11 h-11 object-contain"
           onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
         <span className={`text-[12px] font-extrabold leading-none ${textColor(isAwayPicked, isGraded)}`}>
@@ -155,10 +157,12 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
       >
         <img
           src={teamLogoUrl(game.home_team)}
-          alt={game.home_team}
+          alt=""
           width={44}
           height={44}
-          className="object-contain"
+          loading="lazy"
+          decoding="async"
+          className="w-11 h-11 object-contain"
           onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
         <span className={`text-[12px] font-extrabold leading-none ${textColor(isHomePicked, isGraded)}`}>
