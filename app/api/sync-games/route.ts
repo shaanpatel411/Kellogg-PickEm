@@ -3,30 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchGamesForWeek } from '@/lib/odds-api/adapter'
 import type { NormalizedGame } from '@/lib/odds-api/types'
-
-function getSeasonInfo(date: Date): { weekNumber: number; seasonYear: number } {
-  // NFL seasons start in September and run into January of the following
-  // calendar year, so a January/February game belongs to the season that
-  // kicked off the previous September (e.g. Jan 2027 games are the 2026
-  // season's Week 18), not a new season.
-  const calendarYear = date.getFullYear()
-  const seasonYear = date.getMonth() <= 1 ? calendarYear - 1 : calendarYear
-
-  // NFL regular season week 1 starts the Thursday after Labor Day
-  // Labor Day = first Monday in September
-  const sept1 = new Date(seasonYear, 8, 1)
-  const laborDay = new Date(seasonYear, 8, 1 + ((8 - sept1.getDay()) % 7))
-  const week1Start = new Date(laborDay)
-  week1Start.setDate(laborDay.getDate() + 3) // Thursday
-  week1Start.setHours(0, 0, 0, 0)
-
-  const diff = date.getTime() - week1Start.getTime()
-  // Clamp anything before the computed Week 1 start (e.g. a Wednesday-night
-  // opener) into Week 1 rather than a confusing "Week 0" bucket.
-  const weekNumber = diff < 0 ? 1 : Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1
-
-  return { weekNumber, seasonYear }
-}
+import { getSeasonInfo } from '@/lib/schedule'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
