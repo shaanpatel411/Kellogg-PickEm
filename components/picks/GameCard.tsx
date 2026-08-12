@@ -1,5 +1,7 @@
 'use client'
 import { StatusPill } from '@/components/ui/StatusPill'
+import { PrimetimeBadge } from '@/components/ui/PrimetimeBadge'
+import type { KickoffSlot } from '@/lib/schedule'
 import { teamLogoUrl } from '@/lib/teams'
 
 export interface Pick {
@@ -16,6 +18,8 @@ export interface Game {
   away_team_full: string
   spread: number | null
   kickoff_time: string
+  kickoff_slot: KickoffSlot | null
+  broadcast_network: string | null
   status: 'scheduled' | 'in_progress' | 'final'
   final_home_score: number | null
   final_away_score: number | null
@@ -32,12 +36,13 @@ interface GameCardProps {
   onBlockedTap: () => void
 }
 
-function formatKickoff(isoString: string): string {
+function formatKickoff(isoString: string, broadcastNetwork: string | null): string {
   const d = new Date(isoString)
-  return d.toLocaleString('en-US', {
+  const formatted = d.toLocaleString('en-US', {
     weekday: 'short', hour: 'numeric', minute: '2-digit',
-    timeZoneName: 'short', timeZone: 'America/New_York',
+    timeZoneName: 'short', timeZone: 'America/Chicago',
   })
+  return broadcastNetwork ? `${formatted} — ${broadcastNetwork}` : formatted
 }
 
 function spreadLabel(spread: number | null, isHome: boolean): string {
@@ -143,6 +148,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
         isGraded && pick?.result === 'push' ? 'bg-gray-1' :
         hasPick && isLocked ? 'bg-gold-light' : 'bg-gray-1'
       }`}>
+        <PrimetimeBadge kickoffSlot={game.kickoff_slot} />
         {centerScore ? (
           <span className={`text-[10px] font-semibold font-mono text-center whitespace-pre-line leading-snug ${
             pick?.result === 'win' ? 'text-green' : pick?.result === 'loss' ? 'text-red' : 'text-gray-9'
@@ -151,7 +157,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
           </span>
         ) : (
           <span className="text-[10px] text-gray-9 font-medium text-center leading-snug">
-            {formatKickoff(game.kickoff_time)}
+            {formatKickoff(game.kickoff_time, game.broadcast_network)}
           </span>
         )}
         {centerStatus && <StatusPill status={centerStatus} />}
