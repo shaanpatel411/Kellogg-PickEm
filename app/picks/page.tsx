@@ -11,6 +11,7 @@ export default async function PicksPage() {
   const { data: weeks } = await supabase
     .from('weeks')
     .select('id, week_number, season_year, lock_time')
+    .order('season_year', { ascending: true })
     .order('week_number', { ascending: true })
 
   if (!weeks || weeks.length === 0) {

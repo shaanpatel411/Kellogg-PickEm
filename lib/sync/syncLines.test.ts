@@ -154,7 +154,7 @@ describe('syncLines', () => {
     expect(fakeGames.get('w1')!.kickoff_slot).toBe('sun_early')
     expect(fakeGames.get('w2')!.kickoff_slot).toBe('sun_early')
     expect(fakeGames.get('w1')!.broadcast_network).toBe('FOX')
-    expect(fakeGames.get('w2')!.broadcast_network).toBeNull() // different date, no matching ESPN event
+    expect(fakeGames.get('w2')!.broadcast_network).toBeUndefined() // different date, no matching ESPN event — key omitted, not written as null
   })
 
   it('completes successfully when ESPN enrichment fails', async () => {
@@ -164,6 +164,49 @@ describe('syncLines', () => {
     const result = await syncLines()
 
     expect(result.synced).toBe(1)
-    expect(fakeGames.get('w1')!.broadcast_network).toBeNull()
+    expect(fakeGames.get('w1')!.broadcast_network).toBeUndefined()
+  })
+
+  it('does not overwrite an existing broadcast_network with null when ESPN enrichment fails on a later run', async () => {
+    mockGames = [game({ oddsApiId: 'w1', kickoffTime: '2026-09-13T17:00:00Z', homeTeam: 'CIN', awayTeam: 'TB' })]
+    mockEspnEvents = [
+      {
+        date: '2026-09-13T17:00:00Z',
+        competitions: [{
+          competitors: [
+            { homeAway: 'home', team: { abbreviation: 'CIN' } },
+            { homeAway: 'away', team: { abbreviation: 'TB' } },
+          ],
+          broadcasts: [{ names: ['FOX'] }],
+        }],
+      },
+    ]
+    await syncLines()
+    expect(fakeGames.get('w1')!.broadcast_network).toBe('FOX')
+
+    // Next run: ESPN is down, but the game already has a network from before.
+    espnShouldFail = true
+    await syncLines()
+
+    expect(fakeGames.get('w1')!.broadcast_network).toBe('FOX') // untouched, not nulled out
+  })
+
+  it('leaves spread/favorite_team unset (not explicit null) for a target-week game with no posted line yet', async () => {
+    // A game whose bookmaker hasn't posted a line at the exact moment its
+    // week becomes the sync target should not get an explicit spread: null
+    // written — that would look identical to any other "priced" write and
+    // give no signal that this game is still genuinely open, unlike a
+    // withheld key (same technique already used for non-target weeks).
+    mockGames = [
+      game({ oddsApiId: 'w1', kickoffTime: '2026-09-13T17:00:00Z', spread: -3.5 }),
+      game({ oddsApiId: 'w2', kickoffTime: '2026-09-13T20:00:00Z', spread: null, favoriteTeam: null }),
+    ]
+
+    const result = await syncLines()
+
+    expect(result.weeksProcessed.filter(w => w.snapshotted)).toHaveLength(1)
+    expect(fakeGames.get('w1')!.spread).toBe(-3.5)
+    expect(fakeGames.get('w2')!.spread).toBeUndefined() // no line posted yet — omitted, not written as null
+    expect(fakeGames.get('w2')!.favorite_team).toBeUndefined()
   })
 })

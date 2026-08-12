@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { matchBroadcastNetworks, gameMatchKey, type EspnBroadcastEvent, type GameForMatching } from './scoreboard'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { matchBroadcastNetworks, gameMatchKey, fetchEspnScoreboard, type EspnBroadcastEvent, type GameForMatching } from './scoreboard'
 
 const mockEvents: EspnBroadcastEvent[] = [
   {
@@ -58,5 +58,24 @@ describe('matchBroadcastNetworks', () => {
   it('handles an empty events list', () => {
     const games: GameForMatching[] = [{ home_team: 'CIN', away_team: 'TB', kickoff_time: '2026-09-13T17:00:00Z' }]
     expect(matchBroadcastNetworks(games, []).size).toBe(0)
+  })
+})
+
+describe('fetchEspnScoreboard', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('requests limit=1000 and shifts the start date back a day to cover the ET/UTC boundary', async () => {
+    let capturedUrl: string | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      capturedUrl = url
+      return { ok: true, json: async () => ({ events: [] }) } as Response
+    }))
+
+    await fetchEspnScoreboard(new Date('2026-09-05T00:00:00Z'), new Date('2026-09-08T00:00:00Z'))
+
+    expect(capturedUrl).toContain('limit=1000')
+    expect(capturedUrl).toContain('dates=20260904-20260908') // start shifted back a day from input
   })
 })

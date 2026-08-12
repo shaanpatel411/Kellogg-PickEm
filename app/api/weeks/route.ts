@@ -10,6 +10,7 @@ export async function GET() {
   const { data: weeks, error: weeksError } = await supabase
     .from('weeks')
     .select('id, week_number, season_year, lock_time')
+    .order('season_year', { ascending: true })
     .order('week_number', { ascending: true })
 
   if (weeksError) return NextResponse.json({ error: weeksError.message }, { status: 500 })

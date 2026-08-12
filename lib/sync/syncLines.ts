@@ -102,6 +102,7 @@ export async function syncLines(): Promise<SyncResult> {
     const isTarget = week.id === targetWeekId
 
     const gameRows = week.games.map(g => {
+      const network = broadcastMap.get(gameMatchKey(g.awayTeam, g.homeTeam, g.kickoffTime))
       const base = {
         week_id: week.id,
         home_team: g.homeTeam,
@@ -110,7 +111,11 @@ export async function syncLines(): Promise<SyncResult> {
         away_team_full: g.awayTeamFull,
         kickoff_time: g.kickoffTime,
         kickoff_slot: computeKickoffSlot(g.kickoffTime),
-        broadcast_network: broadcastMap.get(gameMatchKey(g.awayTeam, g.homeTeam, g.kickoffTime)) ?? null,
+        // broadcast_network is best-effort/additive: omit the key entirely
+        // when no network was found (ESPN down, or ESPN just hasn't
+        // announced it yet) so ON CONFLICT DO UPDATE leaves any existing
+        // value untouched instead of overwriting it with NULL.
+        ...(network ? { broadcast_network: network } : {}),
         odds_api_id: g.oddsApiId,
         updated_at: new Date().toISOString(),
       }
@@ -118,7 +123,16 @@ export async function syncLines(): Promise<SyncResult> {
       // other week's upsert omits these keys entirely, so Postgres's
       // ON CONFLICT DO UPDATE leaves any existing value untouched (frozen)
       // and a brand-new row just gets the column default (NULL, withheld).
-      return isTarget ? { ...base, spread: g.spread, favorite_team: g.favoriteTeam } : base
+      // Within the target week, a game whose spread hasn't posted yet
+      // (spread === null) is treated the same as a non-target game — the
+      // key is omitted rather than writing an explicit NULL. This avoids
+      // writing a misleading "confirmed null" into a column that was
+      // simply never priced yet, and (if this run throws before reaching
+      // the lines_snapshot_at write below) a retried run can still pick up
+      // this same week as target and fill the game in normally.
+      return isTarget && g.spread !== null
+        ? { ...base, spread: g.spread, favorite_team: g.favoriteTeam }
+        : base
     })
 
     const { error: gamesError } = await admin

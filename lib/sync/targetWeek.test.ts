@@ -32,4 +32,12 @@ describe('selectTargetWeek', () => {
   it('returns null for an empty candidate list', () => {
     expect(selectTargetWeek([], now)).toBeNull()
   })
+
+  it('returns null when no candidate is eligible because every lock time has already passed', () => {
+    const candidates: WeekCandidate[] = [
+      { id: 'week-1', lockTime: '2026-09-01T00:20:00Z', alreadySnapshotted: false },
+      { id: 'week-2', lockTime: '2026-09-03T00:20:00Z', alreadySnapshotted: false },
+    ]
+    expect(selectTargetWeek(candidates, now)).toBeNull()
+  })
 })

@@ -49,7 +49,14 @@ function formatEspnDate(d: Date): string {
 }
 
 export async function fetchEspnScoreboard(startDate: Date, endDate: Date): Promise<EspnBroadcastEvent[]> {
-  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${formatEspnDate(startDate)}-${formatEspnDate(endDate)}`
+  // ESPN's dates= filter operates on Eastern Time calendar days, but we
+  // format in UTC — shift the start back a day so a late-night ET kickoff
+  // that's already "tomorrow" in UTC isn't excluded from the range. The end
+  // boundary already errs wide (UTC date can only be later than ET date), so
+  // it's left as-is. Also request limit=1000 — ESPN defaults to page size
+  // 100, which silently truncates a full-season date range (~272 events).
+  const safeStart = new Date(startDate.getTime() - 24 * 60 * 60 * 1000)
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${formatEspnDate(safeStart)}-${formatEspnDate(endDate)}&limit=1000`
   const response = await fetch(url, { next: { revalidate: 0 } })
   if (!response.ok) throw new Error(`ESPN scoreboard error: ${response.status}`)
   const data = await response.json()
