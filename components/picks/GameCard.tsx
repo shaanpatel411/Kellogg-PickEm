@@ -148,7 +148,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
         isGraded && pick?.result === 'push' ? 'bg-gray-1' :
         hasPick && isLocked ? 'bg-gold-light' : 'bg-gray-1'
       }`}>
-        <PrimetimeBadge kickoffSlot={game.kickoff_slot} />
+        <PrimetimeBadge kickoffSlot={game.kickoff_slot} kickoffTime={game.kickoff_time} />
         {centerScore ? (
           <span className={`text-[10px] font-semibold font-mono text-center whitespace-pre-line leading-snug ${
             pick?.result === 'win' ? 'text-green' : pick?.result === 'loss' ? 'text-red' : 'text-gray-9'

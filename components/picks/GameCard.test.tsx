@@ -168,6 +168,22 @@ describe('GameCard schedule info', () => {
     }
   })
 
+  it('suppresses the TNF badge for a Thursday day game (e.g. Thanksgiving early slate)', () => {
+    const game: Game = { ...baseGame, kickoff_slot: 'thu_night', kickoff_time: '2026-11-26T17:30:00Z' }
+    const { queryByText } = render(
+      <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} />
+    )
+    expect(queryByText('TNF')).toBeNull()
+  })
+
+  it('suppresses the MNF badge for a Monday day game', () => {
+    const game: Game = { ...baseGame, kickoff_slot: 'mon_night', kickoff_time: '2026-11-30T18:00:00Z' }
+    const { queryByText } = render(
+      <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} />
+    )
+    expect(queryByText('MNF')).toBeNull()
+  })
+
   it('displays the kickoff time in Central time, not Eastern', () => {
     const { container } = render(
       <GameCard game={baseGame} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} />
@@ -185,9 +201,10 @@ describe('GameCard schedule info', () => {
     expect(withContainer.textContent).toContain('— CBS')
     unmount()
 
-    const { container: withoutContainer } = render(
+    const { container: withoutContainer, getByText } = render(
       <GameCard game={baseGame} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} />
     )
     expect(withoutContainer.textContent).not.toContain('—')
+    expect(getByText('Tue, 7:15 PM CDT').textContent).not.toContain('—')
   })
 })
