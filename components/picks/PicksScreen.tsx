@@ -7,12 +7,13 @@ import { Toast } from '@/components/ui/Toast'
 
 interface PicksScreenProps {
   initialWeekId: string
+  activeWeekId: string
   initialGames: Game[]
   initialPicks: Pick[]
   weeks: WeekSummary[]
 }
 
-export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }: PicksScreenProps) {
+export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initialPicks, weeks }: PicksScreenProps) {
   const [currentWeekId, setCurrentWeekId] = useState(initialWeekId)
   const [games, setGames] = useState<Game[]>(initialGames)
   const [picks, setPicks] = useState<Record<string, Pick>>(
@@ -25,6 +26,7 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
 
   const currentWeek = weeks.find(w => w.id === currentWeekId)
   const lockTime = currentWeek?.lock_time ?? new Date(Date.now() + 86400000).toISOString()
+  const isActiveWeek = currentWeekId === activeWeekId
 
   // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -125,6 +127,7 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
               pick={picks[game.id] ?? null}
               isLocked={isLocked}
               atPickLimit={atPickLimit}
+              isActiveWeek={isActiveWeek}
               onPick={handlePick}
               onDeselect={handleDeselect}
               onBlockedTap={() => showToast("Picks aren't open for this game yet")}

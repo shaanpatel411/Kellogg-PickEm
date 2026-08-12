@@ -10,7 +10,7 @@ export default async function PicksPage() {
   // Load all weeks
   const { data: weeks } = await supabase
     .from('weeks')
-    .select('id, week_number, season_year, lock_time')
+    .select('id, week_number, season_year, lock_time, lines_snapshot_at')
     .order('season_year', { ascending: true })
     .order('week_number', { ascending: true })
 
@@ -26,24 +26,29 @@ export default async function PicksPage() {
     )
   }
 
-  // Current week = most recent week whose lock_time is in the future, or last week
-  const now = new Date()
-  const currentWeek =
-    weeks.find(w => new Date(w.lock_time) > now) ??
-    weeks[weeks.length - 1]
+  // Active week = whichever week most recently had its lines snapshotted by
+  // a real sync run — self-healing if a Tuesday sync ever fails or runs
+  // late (the app keeps showing the last week that actually got real data
+  // rather than guessing from a calendar), and naturally keeps a week
+  // active through its whole game span rather than flipping away the
+  // moment just its first kickoff passes.
+  const snapshottedWeeks = weeks
+    .filter(w => w.lines_snapshot_at !== null)
+    .sort((a, b) => new Date(b.lines_snapshot_at!).getTime() - new Date(a.lines_snapshot_at!).getTime())
+  const activeWeek = snapshottedWeeks[0] ?? weeks[0]
 
-  // Load games and picks for the current week
+  // Load games and picks for the active week
   const [gamesRes, picksRes] = await Promise.all([
     supabase
       .from('games')
       .select('id, home_team, away_team, home_team_full, away_team_full, spread, kickoff_time, status, final_home_score, final_away_score')
-      .eq('week_id', currentWeek.id)
+      .eq('week_id', activeWeek.id)
       .order('kickoff_time', { ascending: true }),
     supabase
       .from('picks')
       .select('id, game_id, picked_team, spread_at_pick_time, result')
       .eq('user_id', user.id)
-      .eq('week_id', currentWeek.id),
+      .eq('week_id', activeWeek.id),
   ])
 
   // Load per-week pick counts for the drawer
@@ -68,7 +73,8 @@ export default async function PicksPage() {
 
   return (
     <PicksScreen
-      initialWeekId={currentWeek.id}
+      initialWeekId={activeWeek.id}
+      activeWeekId={activeWeek.id}
       initialGames={gamesRes.data ?? []}
       initialPicks={picksRes.data ?? []}
       weeks={enrichedWeeks}
