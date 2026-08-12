@@ -26,6 +26,7 @@ interface GameCardProps {
   pick: Pick | null
   isLocked: boolean
   atPickLimit: boolean
+  isActiveWeek: boolean
   onPick: (gameId: string, team: string) => void
   onDeselect: (gameId: string) => void
   onBlockedTap: () => void
@@ -45,10 +46,11 @@ function spreadLabel(spread: number | null, isHome: boolean): string {
   return val > 0 ? `+${val}` : `${val}`
 }
 
-export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect, onBlockedTap }: GameCardProps) {
+export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPick, onDeselect, onBlockedTap }: GameCardProps) {
   const hasPick = pick !== null
   const isGraded = hasPick && pick.result !== 'pending'
-  const hasSpread = game.spread !== null
+  const hasSpread = game.spread !== null && (isActiveWeek || isLocked)
+  const displaySpread = hasSpread ? game.spread : null
 
   // Determine pill to show in center column
   let centerStatus: 'pending' | 'win' | 'loss' | 'push' | 'tbd' | null = null
@@ -130,7 +132,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
         <span className={`text-[12px] font-semibold font-mono mt-0.5 ${
           isAwayPicked ? 'text-white/85' : 'text-purple-700'
         }`}>
-          {spreadLabel(game.spread, false)}
+          {spreadLabel(displaySpread, false)}
         </span>
       </div>
 
@@ -176,7 +178,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
         <span className={`text-[12px] font-semibold font-mono mt-0.5 ${
           isHomePicked ? 'text-white/85' : 'text-purple-700'
         }`}>
-          {spreadLabel(game.spread, true)}
+          {spreadLabel(displaySpread, true)}
         </span>
       </div>
 

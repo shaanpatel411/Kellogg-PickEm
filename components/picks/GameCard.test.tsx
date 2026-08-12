@@ -19,13 +19,14 @@ const baseGame: Game = {
 
 const noop = () => {}
 
-function renderCard(overrides: { onBlockedTap?: () => void } = {}) {
+function renderCard(overrides: { onBlockedTap?: () => void; isActiveWeek?: boolean } = {}) {
   return render(
     <GameCard
       game={baseGame}
       pick={null}
       isLocked={false}
       atPickLimit={false}
+      isActiveWeek={overrides.isActiveWeek ?? true}
       onPick={noop}
       onDeselect={noop}
       onBlockedTap={overrides.onBlockedTap ?? noop}
@@ -75,6 +76,7 @@ describe('GameCard team logos', () => {
         pick={null}
         isLocked={false}
         atPickLimit={false}
+        isActiveWeek={true}
         onPick={() => { throw new Error('onPick should not be called') }}
         onDeselect={noop}
         onBlockedTap={() => { blockedTapCount++ }}
@@ -83,5 +85,46 @@ describe('GameCard team logos', () => {
     const [awaySide] = container.querySelectorAll('div[class*="flex-1"]')
     awaySide.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(blockedTapCount).toBe(1)
+  })
+
+  it('shows Spread TBD and blocks the tap for a non-active week even when real spread data exists', () => {
+    let blockedTapCount = 0
+    const { container, getByText, queryByText } = render(
+      <GameCard
+        game={baseGame}
+        pick={null}
+        isLocked={false}
+        atPickLimit={false}
+        isActiveWeek={false}
+        onPick={() => { throw new Error('onPick should not be called') }}
+        onDeselect={noop}
+        onBlockedTap={() => { blockedTapCount++ }}
+      />
+    )
+    expect(getByText('Spread TBD')).toBeTruthy()
+    expect(queryByText('+3.5')).toBeNull()
+    expect(queryByText('-3.5')).toBeNull()
+
+    const [awaySide] = container.querySelectorAll('div[class*="flex-1"]')
+    awaySide.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(blockedTapCount).toBe(1)
+  })
+
+  it('still shows the real spread for a past, non-active (locked) week', () => {
+    const { getAllByText, queryByText } = render(
+      <GameCard
+        game={baseGame}
+        pick={null}
+        isLocked={true}
+        atPickLimit={false}
+        isActiveWeek={false}
+        onPick={noop}
+        onDeselect={noop}
+        onBlockedTap={noop}
+      />
+    )
+    expect(getAllByText('+3.5')).toHaveLength(1)
+    expect(getAllByText('-3.5')).toHaveLength(1)
+    expect(queryByText('Spread TBD')).toBeNull()
   })
 })
