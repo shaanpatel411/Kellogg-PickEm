@@ -66,19 +66,12 @@ export default async function PicksPage() {
     picks: picksByWeek[w.id] ?? { total: 0, wins: 0, losses: 0, pushes: 0 },
   }))
 
-  // Cap forward visibility to the active week plus exactly one preview
-  // week — weeks is already ordered by week_number ascending, and every
-  // week up to and including currentWeek is real history/active, so this
-  // keeps everything before it and exactly one slot after.
-  const currentIndex = enrichedWeeks.findIndex(w => w.id === currentWeek.id)
-  const visibleWeeks = enrichedWeeks.filter((_, i) => i <= currentIndex + 1)
-
   return (
     <PicksScreen
       initialWeekId={currentWeek.id}
       initialGames={gamesRes.data ?? []}
       initialPicks={picksRes.data ?? []}
-      weeks={visibleWeeks}
+      weeks={enrichedWeeks}
     />
   )
 }
