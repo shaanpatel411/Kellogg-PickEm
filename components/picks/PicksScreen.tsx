@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { PicksHeader } from './PicksHeader'
 import { GameCard, type Game, type Pick } from './GameCard'
 import { WeekDrawer, type WeekSummary } from './WeekDrawer'
+import { Toast } from '@/components/ui/Toast'
 
 interface PicksScreenProps {
   initialWeekId: string
@@ -19,6 +20,8 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
   )
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentWeek = weeks.find(w => w.id === currentWeekId)
   const lockTime = currentWeek?.lock_time ?? new Date(Date.now() + 86400000).toISOString()
@@ -88,6 +91,12 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
     })
   }
 
+  function showToast(message: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastMessage(message)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500)
+  }
+
   const pickCount = Object.keys(picks).length
   const atPickLimit = pickCount >= 5
 
@@ -118,6 +127,7 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
               atPickLimit={atPickLimit}
               onPick={handlePick}
               onDeselect={handleDeselect}
+              onBlockedTap={() => showToast("Picks aren't open for this game yet")}
             />
           ))
         )}
@@ -130,6 +140,8 @@ export function PicksScreen({ initialWeekId, initialGames, initialPicks, weeks }
         onClose={() => setDrawerOpen(false)}
         onSelectWeek={loadWeek}
       />
+
+      <Toast message={toastMessage} />
     </div>
   )
 }

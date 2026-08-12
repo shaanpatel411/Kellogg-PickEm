@@ -19,7 +19,7 @@ const baseGame: Game = {
 
 const noop = () => {}
 
-function renderCard() {
+function renderCard(overrides: { onBlockedTap?: () => void } = {}) {
   return render(
     <GameCard
       game={baseGame}
@@ -28,6 +28,7 @@ function renderCard() {
       atPickLimit={false}
       onPick={noop}
       onDeselect={noop}
+      onBlockedTap={overrides.onBlockedTap ?? noop}
     />
   )
 }
@@ -63,5 +64,24 @@ describe('GameCard team logos', () => {
     expect(getAllByText('SEA')).toHaveLength(1)
     expect(getAllByText('+3.5')).toHaveLength(1)
     expect(getAllByText('-3.5')).toHaveLength(1)
+  })
+
+  it('calls onBlockedTap instead of onPick when tapping a side with no spread yet', () => {
+    let blockedTapCount = 0
+    const noSpreadGame: Game = { ...baseGame, spread: null }
+    const { container } = render(
+      <GameCard
+        game={noSpreadGame}
+        pick={null}
+        isLocked={false}
+        atPickLimit={false}
+        onPick={() => { throw new Error('onPick should not be called') }}
+        onDeselect={noop}
+        onBlockedTap={() => { blockedTapCount++ }}
+      />
+    )
+    const [awaySide] = container.querySelectorAll('div[class*="flex-1"]')
+    awaySide.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(blockedTapCount).toBe(1)
   })
 })

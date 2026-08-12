@@ -28,6 +28,7 @@ interface GameCardProps {
   atPickLimit: boolean
   onPick: (gameId: string, team: string) => void
   onDeselect: (gameId: string) => void
+  onBlockedTap: () => void
 }
 
 function formatKickoff(isoString: string): string {
@@ -44,7 +45,7 @@ function spreadLabel(spread: number | null, isHome: boolean): string {
   return val > 0 ? `+${val}` : `${val}`
 }
 
-export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect }: GameCardProps) {
+export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect, onBlockedTap }: GameCardProps) {
   const hasPick = pick !== null
   const isGraded = hasPick && pick.result !== 'pending'
   const hasSpread = game.spread !== null
@@ -81,7 +82,11 @@ export function GameCard({ game, pick, isLocked, atPickLimit, onPick, onDeselect
   }
 
   function handleSideTap(teamCode: string) {
-    if (!hasSpread || isLocked || isGraded) return
+    if (!hasSpread) {
+      onBlockedTap()
+      return
+    }
+    if (isLocked || isGraded) return
     if (pick?.picked_team === teamCode) {
       onDeselect(game.id)
     } else if (!atPickLimit || hasPick) {
