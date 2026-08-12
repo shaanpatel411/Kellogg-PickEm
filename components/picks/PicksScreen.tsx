@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PicksHeader } from './PicksHeader'
 import { GameCard, type Game, type Pick } from './GameCard'
 import { WeekDrawer, type WeekSummary } from './WeekDrawer'
@@ -23,6 +24,7 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
   const [isLocked, setIsLocked] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const router = useRouter()
 
   const currentWeek = weeks.find(w => w.id === currentWeekId)
   const lockTime = currentWeek?.lock_time ?? new Date(Date.now() + 86400000).toISOString()
@@ -34,6 +36,23 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
   useEffect(() => {
     setIsLocked(new Date(lockTime) <= new Date())
   }, [lockTime])
+
+  // Refresh server data (activeWeekId, weeks) when the tab regains focus or
+  // becomes visible again, so a long-lived session picks up a real week
+  // advance without requiring a manual reload.
+  useEffect(() => {
+    function handleVisibleOrFocused() {
+      if (document.visibilityState === 'visible') {
+        router.refresh()
+      }
+    }
+    window.addEventListener('focus', handleVisibleOrFocused)
+    document.addEventListener('visibilitychange', handleVisibleOrFocused)
+    return () => {
+      window.removeEventListener('focus', handleVisibleOrFocused)
+      document.removeEventListener('visibilitychange', handleVisibleOrFocused)
+    }
+  }, [router])
 
   // Load games + picks when week changes
   async function loadWeek(weekId: string) {

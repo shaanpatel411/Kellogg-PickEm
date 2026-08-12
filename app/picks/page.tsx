@@ -26,16 +26,19 @@ export default async function PicksPage() {
     )
   }
 
-  // Active week = whichever week most recently had its lines snapshotted by
-  // a real sync run — self-healing if a Tuesday sync ever fails or runs
-  // late (the app keeps showing the last week that actually got real data
-  // rather than guessing from a calendar), and naturally keeps a week
-  // active through its whole game span rather than flipping away the
-  // moment just its first kickoff passes.
-  const snapshottedWeeks = weeks
-    .filter(w => w.lines_snapshot_at !== null)
-    .sort((a, b) => new Date(b.lines_snapshot_at!).getTime() - new Date(a.lines_snapshot_at!).getTime())
-  const activeWeek = snapshottedWeeks[0] ?? weeks[0]
+  // Active week = the earliest snapshotted week that hasn't kicked off yet
+  // (handles the current week correctly even if a same-day double-sync
+  // accidentally snapshotted a later week too) — falling back to the most
+  // recently snapshotted week if every snapshotted week has already
+  // started (self-healing if a sync ever fails or runs late), and finally
+  // to the earliest week overall if nothing has ever been snapshotted.
+  const now = Date.now()
+  const snapshottedWeeks = weeks.filter(w => w.lines_snapshot_at !== null)
+  const activeWeek =
+    snapshottedWeeks.find(w => new Date(w.lock_time).getTime() > now) ??
+    [...snapshottedWeeks]
+      .sort((a, b) => new Date(b.lines_snapshot_at!).getTime() - new Date(a.lines_snapshot_at!).getTime())[0] ??
+    weeks[0]
 
   // Load games and picks for the active week
   const [gamesRes, picksRes] = await Promise.all([
