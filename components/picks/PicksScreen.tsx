@@ -6,6 +6,7 @@ import { GameCard, type Game, type Pick } from './GameCard'
 import { DayGroupHeader } from './DayGroupHeader'
 import { WeekDrawer, type WeekSummary } from './WeekDrawer'
 import { Toast } from '@/components/ui/Toast'
+import { BottomNav } from '@/components/ui/BottomNav'
 import { groupGamesByDay, getKickoffDayKey } from '@/lib/schedule'
 
 interface PicksScreenProps {
@@ -146,7 +147,7 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
         onWeekLabelClick={() => setDrawerOpen(true)}
       />
 
-      <div className="flex flex-col gap-2 p-3 flex-1">
+      <div className="flex flex-col gap-2 p-3 pb-[74px] flex-1">
         {games.length === 0 ? (
           <p className="text-center text-gray-9 text-sm mt-8">
             No games for this week yet. Check back soon.
@@ -181,6 +182,8 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
           })
         )}
       </div>
+
+      <BottomNav />
 
       <WeekDrawer
         weeks={weeks}
