@@ -22,6 +22,57 @@ export function computeKickoffSlot(kickoffTimeIso: string): KickoffSlot {
   return 'other'
 }
 
+export function getKickoffDayKey(kickoffTimeIso: string): string {
+  const d = new Date(kickoffTimeIso)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
+}
+
+export interface DayGroup<G> {
+  dayKey: string
+  label: string
+  lockAt: string
+  games: G[]
+}
+
+export function groupGamesByDay<G extends { kickoff_time: string }>(games: G[]): DayGroup<G>[] {
+  const byKey = new Map<string, G[]>()
+  for (const g of games) {
+    const key = getKickoffDayKey(g.kickoff_time)
+    if (!byKey.has(key)) byKey.set(key, [])
+    byKey.get(key)!.push(g)
+  }
+
+  const groups: DayGroup<G>[] = Array.from(byKey.entries()).map(([dayKey, dayGames]) => {
+    const sortedGames = [...dayGames].sort(
+      (a, b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime()
+    )
+    const lockAt = sortedGames[0].kickoff_time
+    const label = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'long',
+    }).format(new Date(lockAt)).toUpperCase()
+    return { dayKey, label, lockAt: new Date(lockAt).toISOString(), games: sortedGames }
+  })
+
+  return groups.sort((a, b) => new Date(a.lockAt).getTime() - new Date(b.lockAt).getTime())
+}
+
+export function getDayGroupLockTime(
+  games: { id: string; kickoff_time: string }[],
+  targetGameId: string
+): string | null {
+  const target = games.find(g => g.id === targetGameId)
+  if (!target) return null
+  const dayKey = getKickoffDayKey(target.kickoff_time)
+  const group = groupGamesByDay(games).find(g => g.dayKey === dayKey)
+  return group?.lockAt ?? null
+}
+
 export function getSeasonInfo(date: Date): { weekNumber: number; seasonYear: number } {
   // NFL seasons start in September and run into January of the following
   // calendar year, so a January/February game belongs to the season that
