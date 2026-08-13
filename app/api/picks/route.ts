@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getDayGroupLockTime } from '@/lib/schedule'
 
 // GET /api/picks?weekId=xxx — fetch the current user's picks for a week
 export async function GET(request: Request) {
@@ -31,17 +32,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'gameId, weekId, pickedTeam required' }, { status: 400 })
   }
 
-  // Server-side lock check
-  const { data: week } = await supabase
-    .from('weeks')
-    .select('lock_time')
-    .eq('id', weekId)
-    .single()
+  // Server-side lock check — day-group-aware: a game locks with the rest of
+  // its calendar day, not the whole week (see lib/schedule.ts).
+  const { data: weekGames } = await supabase
+    .from('games')
+    .select('id, kickoff_time, spread')
+    .eq('week_id', weekId)
 
-  if (!week) return NextResponse.json({ error: 'Week not found' }, { status: 404 })
+  const lockAt = getDayGroupLockTime(weekGames ?? [], gameId)
+  if (!lockAt) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
-  if (new Date() >= new Date(week.lock_time)) {
-    return NextResponse.json({ error: 'Picks are locked for this week' }, { status: 423 })
+  if (new Date() >= new Date(lockAt)) {
+    return NextResponse.json({ error: 'Picks are locked for this game' }, { status: 423 })
   }
 
   // Check 5-pick limit (only when adding a new pick, not updating existing)
@@ -56,14 +58,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Maximum 5 picks per week' }, { status: 422 })
   }
 
-  // Snapshot the current spread from the game
-  const { data: game } = await supabase
-    .from('games')
-    .select('spread')
-    .eq('id', gameId)
-    .single()
-
-  if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
+  const game = weekGames!.find(g => g.id === gameId)!
   if (game.spread === null) {
     return NextResponse.json({ error: 'Spread not available yet' }, { status: 422 })
   }
@@ -96,17 +91,16 @@ export async function DELETE(request: Request) {
 
   const { gameId, weekId } = await request.json()
 
-  // Lock check
-  const { data: week } = await supabase
-    .from('weeks')
-    .select('lock_time')
-    .eq('id', weekId)
-    .single()
+  const { data: weekGames } = await supabase
+    .from('games')
+    .select('id, kickoff_time')
+    .eq('week_id', weekId)
 
-  if (!week) return NextResponse.json({ error: 'Week not found' }, { status: 404 })
+  const lockAt = getDayGroupLockTime(weekGames ?? [], gameId)
+  if (!lockAt) return NextResponse.json({ error: 'Game not found' }, { status: 404 })
 
-  if (new Date() >= new Date(week.lock_time)) {
-    return NextResponse.json({ error: 'Picks are locked for this week' }, { status: 423 })
+  if (new Date() >= new Date(lockAt)) {
+    return NextResponse.json({ error: 'Picks are locked for this game' }, { status: 423 })
   }
 
   const { error } = await supabase
