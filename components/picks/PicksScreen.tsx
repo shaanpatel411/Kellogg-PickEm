@@ -1,10 +1,12 @@
 'use client'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PicksHeader } from './PicksHeader'
 import { GameCard, type Game, type Pick } from './GameCard'
+import { DayGroupHeader } from './DayGroupHeader'
 import { WeekDrawer, type WeekSummary } from './WeekDrawer'
 import { Toast } from '@/components/ui/Toast'
+import { groupGamesByDay, getKickoffDayKey } from '@/lib/schedule'
 
 interface PicksScreenProps {
   initialWeekId: string
@@ -21,21 +23,28 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
     Object.fromEntries(initialPicks.map(p => [p.game_id, p]))
   )
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [isLocked, setIsLocked] = useState(false)
+  const [lockedDayKeys, setLockedDayKeys] = useState<Record<string, boolean>>({})
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const router = useRouter()
 
   const currentWeek = weeks.find(w => w.id === currentWeekId)
-  const lockTime = currentWeek?.lock_time ?? new Date(Date.now() + 86400000).toISOString()
   const isActiveWeek = currentWeekId === activeWeekId
+
+  const dayGroups = useMemo(() => groupGamesByDay(games), [games])
 
   // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setIsLocked(new Date(lockTime) <= new Date())
-  }, [lockTime])
+    setLockedDayKeys(
+      Object.fromEntries(dayGroups.map(g => [g.dayKey, new Date(g.lockAt).getTime() <= Date.now()]))
+    )
+  }, [dayGroups])
+
+  function handleDayExpired(dayKey: string) {
+    setLockedDayKeys(prev => ({ ...prev, [dayKey]: true }))
+  }
 
   // Refresh server data (activeWeekId, weeks) when the tab regains focus or
   // becomes visible again, so a long-lived session picks up a real week
@@ -67,8 +76,6 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
 
     setGames(gamesRes.games ?? [])
     setPicks(Object.fromEntries((picksRes.picks ?? []).map((p: Pick) => [p.game_id, p])))
-    const week = weeks.find(w => w.id === weekId)
-    setIsLocked(week ? new Date(week.lock_time) <= new Date() : false)
   }
 
   const savePick = useCallback((gameId: string, team: string) => {
@@ -80,8 +87,11 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
         body: JSON.stringify({ gameId, weekId: currentWeekId, pickedTeam: team }),
       })
       if (res.status === 423) {
-        // Lock expired mid-session — revert and re-check
-        setIsLocked(true)
+        // Lock expired mid-session — revert and re-check that game's day group
+        const game = games.find(g => g.id === gameId)
+        if (game) {
+          setLockedDayKeys(prev => ({ ...prev, [getKickoffDayKey(game.kickoff_time)]: true }))
+        }
         setPicks(prev => {
           const next = { ...prev }
           delete next[gameId]
@@ -89,7 +99,7 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
         })
       }
     }, 300)
-  }, [currentWeekId])
+  }, [currentWeekId, games])
 
   function handlePick(gameId: string, team: string) {
     setPicks(prev => ({
@@ -126,11 +136,8 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
       <PicksHeader
         weekNumber={currentWeek?.week_number ?? 0}
         seasonYear={currentWeek?.season_year ?? new Date().getFullYear()}
-        lockTime={lockTime}
         pickCount={pickCount}
-        isLocked={isLocked}
         onWeekLabelClick={() => setDrawerOpen(true)}
-        onExpired={() => setIsLocked(true)}
       />
 
       <div className="flex flex-col gap-2 p-3 flex-1">
@@ -139,19 +146,33 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
             No games for this week yet. Check back soon.
           </p>
         ) : (
-          games.map(game => (
-            <GameCard
-              key={game.id}
-              game={game}
-              pick={picks[game.id] ?? null}
-              isLocked={isLocked}
-              atPickLimit={atPickLimit}
-              isActiveWeek={isActiveWeek}
-              onPick={handlePick}
-              onDeselect={handleDeselect}
-              onBlockedTap={() => showToast("Picks aren't open for this game yet")}
-            />
-          ))
+          dayGroups.map(group => {
+            const groupLocked = lockedDayKeys[group.dayKey] ?? false
+            return (
+              <div key={group.dayKey} className="flex flex-col gap-2">
+                <DayGroupHeader
+                  label={group.label}
+                  lockAt={group.lockAt}
+                  isLocked={groupLocked}
+                  onExpired={() => handleDayExpired(group.dayKey)}
+                />
+                {group.games.map(game => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    pick={picks[game.id] ?? null}
+                    isLocked={groupLocked}
+                    atPickLimit={atPickLimit}
+                    isActiveWeek={isActiveWeek}
+                    onPick={handlePick}
+                    onDeselect={handleDeselect}
+                    onBlockedTap={() => showToast("Picks aren't open for this game yet")}
+                    onLockedTap={() => showToast('Picks are locked for this game')}
+                  />
+                ))}
+              </div>
+            )
+          })
         )}
       </div>
 
