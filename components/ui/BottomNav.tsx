@@ -73,7 +73,7 @@ export function BottomNav() {
           <span
             className={`flex flex-col items-center justify-center gap-0.5 w-16 h-[42px] rounded-pill transition-colors ${
               isActive
-                ? 'bg-linear-to-b from-white to-gray-1/60 backdrop-blur-sm shadow-[0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]'
+                ? 'bg-linear-to-b from-white to-gray-1/60 shadow-[0_1px_3px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]'
                 : ''
             }`}
           >
@@ -91,7 +91,7 @@ export function BottomNav() {
         }
 
         return (
-          <Link key={item.href} href={item.href}>
+          <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined}>
             {content}
           </Link>
         )

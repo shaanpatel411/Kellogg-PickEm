@@ -54,7 +54,7 @@ export function WeekDrawer({ weeks, currentWeekId, isOpen, onClose, onSelectWeek
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center"
       style={{ background: 'rgba(20,10,30,.45)', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === overlayRef.current) onClose() }}
     >
