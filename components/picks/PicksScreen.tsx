@@ -74,8 +74,14 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
       fetch(`/api/picks?weekId=${weekId}`).then(r => r.json()),
     ])
 
-    setGames(gamesRes.games ?? [])
+    const loadedGames: Game[] = gamesRes.games ?? []
+    setGames(loadedGames)
     setPicks(Object.fromEntries((picksRes.picks ?? []).map((p: Pick) => [p.game_id, p])))
+    setLockedDayKeys(
+      Object.fromEntries(
+        groupGamesByDay(loadedGames).map(g => [g.dayKey, new Date(g.lockAt).getTime() <= Date.now()])
+      )
+    )
   }
 
   const savePick = useCallback((gameId: string, team: string) => {

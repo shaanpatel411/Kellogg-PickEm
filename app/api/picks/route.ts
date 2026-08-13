@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
   // its calendar day, not the whole week (see lib/schedule.ts).
   const { data: weekGames } = await supabase
     .from('games')
-    .select('id, kickoff_time, spread')
+    .select('id, kickoff_time, spread, home_team, away_team')
     .eq('week_id', weekId)
 
   const lockAt = getDayGroupLockTime(weekGames ?? [], gameId)
@@ -59,6 +59,9 @@ export async function PATCH(request: Request) {
   }
 
   const game = weekGames!.find(g => g.id === gameId)!
+  if (pickedTeam !== game.home_team && pickedTeam !== game.away_team) {
+    return NextResponse.json({ error: "pickedTeam must match one of the game's teams" }, { status: 400 })
+  }
   if (game.spread === null) {
     return NextResponse.json({ error: 'Spread not available yet' }, { status: 422 })
   }

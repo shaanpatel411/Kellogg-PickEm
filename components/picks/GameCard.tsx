@@ -90,7 +90,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
     }
     if (isLocked) {
       if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-default`
-      return `${base} cursor-pointer`
+      return `${base} hover:bg-purple-100 cursor-pointer`
     }
     // Before lock
     if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-pointer`

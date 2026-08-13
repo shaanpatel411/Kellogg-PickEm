@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return 'Locked'
@@ -23,6 +23,8 @@ function colorClass(ms: number): string {
 
 export function LockCountdown({ lockTime, onExpired }: { lockTime: string; onExpired?: () => void }) {
   const [ms, setMs] = useState(() => new Date(lockTime).getTime() - Date.now())
+  const onExpiredRef = useRef(onExpired)
+  useEffect(() => { onExpiredRef.current = onExpired })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -30,11 +32,11 @@ export function LockCountdown({ lockTime, onExpired }: { lockTime: string; onExp
       setMs(remaining)
       if (remaining <= 0) {
         clearInterval(interval)
-        onExpired?.()
+        onExpiredRef.current?.()
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [lockTime, onExpired])
+  }, [lockTime])
 
   return (
     <span className={`font-mono font-bold ${colorClass(ms)}`}>{formatCountdown(ms)}</span>
