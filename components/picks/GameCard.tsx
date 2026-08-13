@@ -34,6 +34,7 @@ interface GameCardProps {
   onPick: (gameId: string, team: string) => void
   onDeselect: (gameId: string) => void
   onBlockedTap: () => void
+  onLockedTap: () => void
 }
 
 function formatKickoff(isoString: string, broadcastNetwork: string | null): string {
@@ -51,7 +52,16 @@ function spreadLabel(spread: number | null, isHome: boolean): string {
   return val > 0 ? `+${val}` : `${val}`
 }
 
-export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPick, onDeselect, onBlockedTap }: GameCardProps) {
+const lockBadge = (
+  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-gray-11 flex items-center justify-center">
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  </span>
+)
+
+export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPick, onDeselect, onBlockedTap, onLockedTap }: GameCardProps) {
   const hasPick = pick !== null
   const isGraded = hasPick && pick.result !== 'pending'
   const hasSpread = game.spread !== null && (isActiveWeek || isLocked)
@@ -80,7 +90,7 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
     }
     if (isLocked) {
       if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-default`
-      return `${base} opacity-40 cursor-default`
+      return `${base} cursor-pointer`
     }
     // Before lock
     if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-pointer`
@@ -93,7 +103,13 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
       onBlockedTap()
       return
     }
-    if (isLocked || isGraded) return
+    if (isGraded) return
+    if (isLocked) {
+      if (pick?.picked_team !== teamCode) {
+        onLockedTap()
+      }
+      return
+    }
     if (pick?.picked_team === teamCode) {
       onDeselect(game.id)
     } else if (!atPickLimit || hasPick) {
@@ -121,16 +137,19 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
         className={getSideStyle(game.away_team)}
         onClick={() => handleSideTap(game.away_team)}
       >
-        <img
-          src={teamLogoUrl(game.away_team)}
-          alt=""
-          width={44}
-          height={44}
-          loading="lazy"
-          decoding="async"
-          className="w-11 h-11 object-contain"
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
-        />
+        <div className="relative">
+          <img
+            src={teamLogoUrl(game.away_team)}
+            alt=""
+            width={44}
+            height={44}
+            loading="lazy"
+            decoding="async"
+            className="w-11 h-11 object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+          {isLocked && isAwayPicked && lockBadge}
+        </div>
         <span className={`text-[12px] font-extrabold leading-none ${textColor(isAwayPicked, isGraded)}`}>
           {game.away_team}
         </span>
@@ -168,16 +187,19 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
         className={getSideStyle(game.home_team)}
         onClick={() => handleSideTap(game.home_team)}
       >
-        <img
-          src={teamLogoUrl(game.home_team)}
-          alt=""
-          width={44}
-          height={44}
-          loading="lazy"
-          decoding="async"
-          className="w-11 h-11 object-contain"
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
-        />
+        <div className="relative">
+          <img
+            src={teamLogoUrl(game.home_team)}
+            alt=""
+            width={44}
+            height={44}
+            loading="lazy"
+            decoding="async"
+            className="w-11 h-11 object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+          {isLocked && isHomePicked && lockBadge}
+        </div>
         <span className={`text-[12px] font-extrabold leading-none ${textColor(isHomePicked, isGraded)}`}>
           {game.home_team}
         </span>
