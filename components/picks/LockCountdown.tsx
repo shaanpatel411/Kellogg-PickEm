@@ -13,6 +13,14 @@ function formatCountdown(ms: number): string {
   return `${m}m ${s}s`
 }
 
+function colorClass(ms: number): string {
+  if (ms <= 0) return 'text-gray-9'
+  const hours = ms / (1000 * 60 * 60)
+  if (hours < 2) return 'text-red'
+  if (hours < 24) return 'text-gold'
+  return 'text-gray-9'
+}
+
 export function LockCountdown({ lockTime, onExpired }: { lockTime: string; onExpired?: () => void }) {
   const [ms, setMs] = useState(() => new Date(lockTime).getTime() - Date.now())
 
@@ -29,6 +37,6 @@ export function LockCountdown({ lockTime, onExpired }: { lockTime: string; onExp
   }, [lockTime, onExpired])
 
   return (
-    <span className="font-mono font-bold text-gold">{formatCountdown(ms)}</span>
+    <span className={`font-mono font-bold ${colorClass(ms)}`}>{formatCountdown(ms)}</span>
   )
 }
