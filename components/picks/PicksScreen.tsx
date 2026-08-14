@@ -1,9 +1,10 @@
 'use client'
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PicksHeader } from './PicksHeader'
 import { GameCard, type Game, type Pick } from './GameCard'
 import { DayGroupHeader } from './DayGroupHeader'
+import { SubmitBar, type SubmitSlot } from './SubmitBar'
 import { WeekDrawer, type WeekSummary } from './WeekDrawer'
 import { Toast } from '@/components/ui/Toast'
 import { BottomNav } from '@/components/ui/BottomNav'
@@ -17,15 +18,33 @@ interface PicksScreenProps {
   weeks: WeekSummary[]
 }
 
+// A Map preserves insertion order natively — new games append at the end,
+// and re-`.set()`-ing an already-staged game's team keeps its existing
+// position — which is exactly the submit bar's "5 dots in tap order,
+// compacted" behavior, with no separate order array to keep in sync.
+function buildInitialStaged(games: Game[], picks: Pick[]): Map<string, string> {
+  const byGameId = new Map(picks.map(p => [p.game_id, p.picked_team]))
+  const sorted = games
+    .filter(g => byGameId.has(g.id))
+    .sort((a, b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime())
+  return new Map(sorted.map(g => [g.id, byGameId.get(g.id)!]))
+}
+
 export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initialPicks, weeks }: PicksScreenProps) {
   const [currentWeekId, setCurrentWeekId] = useState(initialWeekId)
   const [games, setGames] = useState<Game[]>(initialGames)
-  const [picks, setPicks] = useState<Record<string, Pick>>(
+
+  const [submittedPicks, setSubmittedPicks] = useState<Record<string, Pick>>(
     Object.fromEntries(initialPicks.map(p => [p.game_id, p]))
   )
+  const [stagedPicks, setStagedPicks] = useState<Map<string, string>>(
+    buildInitialStaged(initialGames, initialPicks)
+  )
+
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [lockedDayKeys, setLockedDayKeys] = useState<Record<string, boolean>>({})
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const router = useRouter()
 
@@ -34,17 +53,44 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
 
   const dayGroups = useMemo(() => groupGamesByDay(games), [games])
 
-  // Debounce timer ref
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   useEffect(() => {
     setLockedDayKeys(
       Object.fromEntries(dayGroups.map(g => [g.dayKey, new Date(g.lockAt).getTime() <= Date.now()]))
     )
   }, [dayGroups])
 
+  function showToast(message: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastMessage(message)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500)
+  }
+
+  // A staged edit never reaches the server until Submit, so when a day
+  // locks, any game in it whose staged team doesn't match its last-known
+  // submitted team just gets reverted locally — there's nothing server-side
+  // to clean up, since the edit was never persisted.
   function handleDayExpired(dayKey: string) {
     setLockedDayKeys(prev => ({ ...prev, [dayKey]: true }))
+
+    const gamesInDay = games.filter(g => getKickoffDayKey(g.kickoff_time) === dayKey)
+    let revertedAny = false
+
+    setStagedPicks(prev => {
+      const next = new Map(prev)
+      for (const game of gamesInDay) {
+        const submittedTeam = submittedPicks[game.id]?.picked_team
+        if (next.get(game.id) !== submittedTeam) {
+          revertedAny = true
+          if (submittedTeam) next.set(game.id, submittedTeam)
+          else next.delete(game.id)
+        }
+      }
+      return next
+    })
+
+    if (revertedAny) {
+      showToast('A pick locked before you submitted it, so it was removed.')
+    }
   }
 
   // Refresh server data (activeWeekId, weeks) when the tab regains focus or
@@ -67,7 +113,8 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
   // Load games + picks when week changes
   async function loadWeek(weekId: string) {
     setCurrentWeekId(weekId)
-    setPicks({})
+    setSubmittedPicks({})
+    setStagedPicks(new Map())
     setGames([])
 
     const [gamesRes, picksRes] = await Promise.all([
@@ -76,8 +123,10 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
     ])
 
     const loadedGames: Game[] = gamesRes.games ?? []
+    const loadedPicks: Pick[] = picksRes.picks ?? []
     setGames(loadedGames)
-    setPicks(Object.fromEntries((picksRes.picks ?? []).map((p: Pick) => [p.game_id, p])))
+    setSubmittedPicks(Object.fromEntries(loadedPicks.map((p: Pick) => [p.game_id, p])))
+    setStagedPicks(buildInitialStaged(loadedGames, loadedPicks))
     setLockedDayKeys(
       Object.fromEntries(
         groupGamesByDay(loadedGames).map(g => [g.dayKey, new Date(g.lockAt).getTime() <= Date.now()])
@@ -85,65 +134,115 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
     )
   }
 
-  const savePick = useCallback((gameId: string, team: string) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
+  // Tapping a team only stages it locally — nothing reaches the server
+  // until Submit.
+  function handlePick(gameId: string, team: string) {
+    setStagedPicks(prev => {
+      const next = new Map(prev)
+      next.set(gameId, team) // .set() on an existing key keeps its position; a new key appends
+      return next
+    })
+  }
+
+  function handleDeselect(gameId: string) {
+    setStagedPicks(prev => {
+      const next = new Map(prev)
+      next.delete(gameId)
+      return next
+    })
+  }
+
+  // Diffs stagedPicks against submittedPicks and syncs the difference via
+  // the existing PATCH/DELETE endpoints. Deletes run before patches, and
+  // every call runs sequentially — both are required for the server's
+  // 5-pick-limit check (which re-queries current DB state per call) to stay
+  // correct across a batch that both removes and adds picks.
+  async function handleSubmit() {
+    const toDelete = Object.keys(submittedPicks).filter(gameId => !stagedPicks.has(gameId))
+    const toPatch = [...stagedPicks.entries()].filter(
+      ([gameId, team]) => team !== submittedPicks[gameId]?.picked_team
+    )
+
+    if (toDelete.length === 0 && toPatch.length === 0) return
+
+    setIsSubmitting(true)
+
+    const deletedIds: string[] = []
+    const patchedPicks: Pick[] = []
+    const failedIds: string[] = []
+
+    for (const gameId of toDelete) {
+      const res = await fetch('/api/picks', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, weekId: currentWeekId }),
+      })
+      if (res.ok) deletedIds.push(gameId)
+      else failedIds.push(gameId)
+    }
+
+    for (const [gameId, team] of toPatch) {
       const res = await fetch('/api/picks', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId, weekId: currentWeekId, pickedTeam: team }),
       })
-      if (res.status === 423) {
-        // Lock expired mid-session — revert and re-check that game's day group
-        const game = games.find(g => g.id === gameId)
-        if (game) {
-          setLockedDayKeys(prev => ({ ...prev, [getKickoffDayKey(game.kickoff_time)]: true }))
-        }
-        setPicks(prev => {
-          const next = { ...prev }
-          delete next[gameId]
-          return next
-        })
+      if (res.ok) {
+        const { pick } = await res.json()
+        patchedPicks.push(pick)
+      } else {
+        failedIds.push(gameId)
       }
-    }, 300)
-  }, [currentWeekId, games])
+    }
 
-  function handlePick(gameId: string, team: string) {
-    setPicks(prev => ({
-      ...prev,
-      [gameId]: { game_id: gameId, picked_team: team, result: 'pending' },
-    }))
-    savePick(gameId, team)
-  }
-
-  async function handleDeselect(gameId: string) {
-    setPicks(prev => {
+    setSubmittedPicks(prev => {
       const next = { ...prev }
-      delete next[gameId]
+      for (const gameId of deletedIds) delete next[gameId]
+      for (const pick of patchedPicks) next[pick.game_id] = pick
       return next
     })
-    await fetch('/api/picks', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId, weekId: currentWeekId }),
+
+    if (failedIds.length > 0) {
+      setStagedPicks(prev => {
+        const next = new Map(prev)
+        for (const gameId of failedIds) {
+          const submitted = submittedPicks[gameId]
+          if (submitted) next.set(gameId, submitted.picked_team)
+          else next.delete(gameId)
+        }
+        return next
+      })
+      showToast(
+        failedIds.length === 1
+          ? "1 pick couldn't be submitted — its game just locked"
+          : `${failedIds.length} picks couldn't be submitted — their games just locked`
+      )
+    }
+
+    setIsSubmitting(false)
+  }
+
+  const atPickLimit = stagedPicks.size >= 5
+
+  const slots: SubmitSlot[] = [...stagedPicks.entries()]
+    .map(([gameId, team]) => {
+      const game = games.find(g => g.id === gameId)
+      if (!game) return null
+      return { game, team, isSynced: submittedPicks[gameId]?.picked_team === team }
     })
-  }
+    .filter((s): s is SubmitSlot => s !== null)
+    .slice(0, 5)
 
-  function showToast(message: string) {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    setToastMessage(message)
-    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500)
-  }
-
-  const pickCount = Object.keys(picks).length
-  const atPickLimit = pickCount >= 5
+  const isDirty =
+    Object.keys(submittedPicks).some(gameId => !stagedPicks.has(gameId)) ||
+    [...stagedPicks.entries()].some(([gameId, team]) => team !== submittedPicks[gameId]?.picked_team)
 
   return (
     <div className="w-full max-w-[430px] mx-auto min-h-screen flex flex-col">
       <PicksHeader
         weekNumber={currentWeek?.week_number ?? 0}
         seasonYear={currentWeek?.season_year ?? new Date().getFullYear()}
-        pickCount={pickCount}
+        submittedCount={Object.keys(submittedPicks).length}
         onWeekLabelClick={() => setDrawerOpen(true)}
       />
 
@@ -167,7 +266,8 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
                   <GameCard
                     key={game.id}
                     game={game}
-                    pick={picks[game.id] ?? null}
+                    stagedTeam={stagedPicks.get(game.id) ?? null}
+                    submittedPick={submittedPicks[game.id] ?? null}
                     isLocked={groupLocked}
                     atPickLimit={atPickLimit}
                     isActiveWeek={isActiveWeek}
@@ -182,6 +282,8 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
           })
         )}
       </div>
+
+      <SubmitBar slots={slots} isDirty={isDirty} isSubmitting={isSubmitting} onSubmit={handleSubmit} />
 
       <BottomNav />
 

@@ -3,12 +3,12 @@
 interface PicksHeaderProps {
   weekNumber: number
   seasonYear: number
-  pickCount: number
+  submittedCount: number
   onWeekLabelClick: () => void
 }
 
 export function PicksHeader({
-  weekNumber, seasonYear, pickCount, onWeekLabelClick,
+  weekNumber, seasonYear, submittedCount, onWeekLabelClick,
 }: PicksHeaderProps) {
   return (
     <div className="bg-purple-700 px-4 pt-4 pb-3 text-white">
@@ -20,10 +20,10 @@ export function PicksHeader({
           <h1 className="text-xl font-black mt-0.5">Your picks</h1>
         </div>
         <div className="flex flex-col items-end gap-0.5">
-          <span className={`text-[22px] font-black font-mono leading-none ${pickCount === 5 ? 'text-green' : 'text-white'}`}>
-            {pickCount}/5
+          <span className={`text-[22px] font-black font-mono leading-none ${submittedCount === 5 ? 'text-green' : 'text-white'}`}>
+            {submittedCount}/5
           </span>
-          <span className="text-[10px] uppercase tracking-widest opacity-65">selected</span>
+          <span className="text-[10px] uppercase tracking-widest opacity-65">Submitted</span>
         </div>
       </div>
 
