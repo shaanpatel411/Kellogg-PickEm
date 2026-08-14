@@ -27,7 +27,8 @@ export interface Game {
 
 interface GameCardProps {
   game: Game
-  pick: Pick | null
+  stagedTeam: string | null
+  submittedPick: Pick | null
   isLocked: boolean
   atPickLimit: boolean
   isActiveWeek: boolean
@@ -46,7 +47,7 @@ function formatKickoff(isoString: string, broadcastNetwork: string | null): stri
   return broadcastNetwork ? `${formatted} — ${broadcastNetwork}` : formatted
 }
 
-function spreadLabel(spread: number | null, isHome: boolean): string {
+export function spreadLabel(spread: number | null, isHome: boolean): string {
   if (spread === null) return '—'
   const val = isHome ? spread : -spread
   return val > 0 ? `+${val}` : `${val}`
@@ -61,17 +62,26 @@ const lockBadge = (
   </span>
 )
 
-export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPick, onDeselect, onBlockedTap, onLockedTap }: GameCardProps) {
-  const hasPick = pick !== null
-  const isGraded = hasPick && pick.result !== 'pending'
+export function GameCard({ game, stagedTeam, submittedPick, isLocked, atPickLimit, isActiveWeek, onPick, onDeselect, onBlockedTap, onLockedTap }: GameCardProps) {
+  const hasStagedPick = stagedTeam !== null
+  const isGraded = submittedPick !== null && submittedPick.result !== 'pending'
   const hasSpread = game.spread !== null && (isActiveWeek || isLocked)
   const displaySpread = hasSpread ? game.spread : null
+
+  // Once a day locks, staged and submitted are guaranteed to match for every
+  // game in it (PicksScreen reverts any unsynced edit at that moment) — so
+  // graded/locked states can safely read submittedPick, and only the
+  // pre-lock editable state needs stagedTeam.
+  function isPickedFor(teamCode: string): boolean {
+    if (isGraded || isLocked) return submittedPick?.picked_team === teamCode
+    return stagedTeam === teamCode
+  }
 
   // Determine pill to show in center column
   let centerStatus: 'pending' | 'win' | 'loss' | 'push' | 'tbd' | null = null
   if (!hasSpread) centerStatus = 'tbd'
-  else if (isGraded) centerStatus = pick!.result as 'win' | 'loss' | 'push'
-  else if (hasPick && isLocked) centerStatus = 'pending'
+  else if (isGraded) centerStatus = submittedPick!.result as 'win' | 'loss' | 'push'
+  else if (submittedPick !== null && isLocked) centerStatus = 'pending'
 
   // Center column content
   const centerScore = isGraded && game.final_home_score !== null
@@ -82,19 +92,19 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
     const base = 'flex-1 flex flex-col items-center justify-center py-2.5 px-1.5'
     if (!hasSpread) return `${base} opacity-40 cursor-default`
     if (isGraded) {
-      if (pick!.picked_team === teamCode) {
-        const color = pick!.result === 'win' ? 'bg-green' : pick!.result === 'loss' ? 'bg-red' : 'bg-gray-9'
+      if (isPickedFor(teamCode)) {
+        const color = submittedPick!.result === 'win' ? 'bg-green' : submittedPick!.result === 'loss' ? 'bg-red' : 'bg-gray-9'
         return `${base} ${color} cursor-default`
       }
       return `${base} opacity-40 cursor-default`
     }
     if (isLocked) {
-      if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-default`
+      if (isPickedFor(teamCode)) return `${base} bg-purple-700 cursor-default`
       return `${base} hover:bg-purple-100 cursor-pointer`
     }
     // Before lock
-    if (pick?.picked_team === teamCode) return `${base} bg-purple-700 cursor-pointer`
-    if (atPickLimit && !hasPick) return `${base} opacity-40 cursor-default`
+    if (isPickedFor(teamCode)) return `${base} bg-purple-700 cursor-pointer`
+    if (atPickLimit && !hasStagedPick) return `${base} opacity-40 cursor-default`
     return `${base} hover:bg-purple-100 cursor-pointer`
   }
 
@@ -105,31 +115,30 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
     }
     if (isGraded) return
     if (isLocked) {
-      if (pick?.picked_team !== teamCode) {
+      if (!isPickedFor(teamCode)) {
         onLockedTap()
       }
       return
     }
-    if (pick?.picked_team === teamCode) {
+    if (stagedTeam === teamCode) {
       onDeselect(game.id)
-    } else if (!atPickLimit || hasPick) {
+    } else if (!atPickLimit || hasStagedPick) {
       onPick(game.id, teamCode)
     }
   }
 
-  const pickedTeam = pick?.picked_team
-  const isHomePicked = pickedTeam === game.home_team
-  const isAwayPicked = pickedTeam === game.away_team
+  const isHomePicked = isPickedFor(game.home_team)
+  const isAwayPicked = isPickedFor(game.away_team)
   const textColor = (picked: boolean, graded: boolean) =>
     picked && graded ? 'text-white' : picked ? 'text-white' : 'text-gray-11'
 
   return (
     <div className={`flex overflow-hidden rounded-xl border-[1.5px] min-h-[68px] bg-white transition-colors ${
       !hasSpread ? 'border-gray-1 opacity-65' :
-      isGraded && pick?.result === 'win' ? 'border-green' :
-      isGraded && pick?.result === 'loss' ? 'border-red' :
-      isGraded && pick?.result === 'push' ? 'border-gray-4' :
-      hasPick ? 'border-purple-300' : 'border-gray-1'
+      isGraded && submittedPick?.result === 'win' ? 'border-green' :
+      isGraded && submittedPick?.result === 'loss' ? 'border-red' :
+      isGraded && submittedPick?.result === 'push' ? 'border-gray-4' :
+      hasStagedPick ? 'border-purple-300' : 'border-gray-1'
     }`}>
 
       {/* Away side */}
@@ -162,15 +171,15 @@ export function GameCard({ game, pick, isLocked, atPickLimit, isActiveWeek, onPi
 
       {/* Center column */}
       <div className={`flex flex-col items-center justify-center px-1.5 py-2 gap-1 min-w-[56px] ${
-        isGraded && pick?.result === 'win' ? 'bg-green-light' :
-        isGraded && pick?.result === 'loss' ? 'bg-red-light' :
-        isGraded && pick?.result === 'push' ? 'bg-gray-1' :
-        hasPick && isLocked ? 'bg-gold-light' : 'bg-gray-1'
+        isGraded && submittedPick?.result === 'win' ? 'bg-green-light' :
+        isGraded && submittedPick?.result === 'loss' ? 'bg-red-light' :
+        isGraded && submittedPick?.result === 'push' ? 'bg-gray-1' :
+        submittedPick !== null && isLocked ? 'bg-gold-light' : 'bg-gray-1'
       }`}>
         <PrimetimeBadge kickoffSlot={game.kickoff_slot} kickoffTime={game.kickoff_time} />
         {centerScore ? (
           <span className={`text-[10px] font-semibold font-mono text-center whitespace-pre-line leading-snug ${
-            pick?.result === 'win' ? 'text-green' : pick?.result === 'loss' ? 'text-red' : 'text-gray-9'
+            submittedPick?.result === 'win' ? 'text-green' : submittedPick?.result === 'loss' ? 'text-red' : 'text-gray-9'
           }`}>
             {centerScore}
           </span>

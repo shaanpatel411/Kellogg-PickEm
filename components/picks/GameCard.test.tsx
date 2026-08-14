@@ -25,7 +25,8 @@ function renderCard(overrides: { onBlockedTap?: () => void; isActiveWeek?: boole
   return render(
     <GameCard
       game={baseGame}
-      pick={null}
+      stagedTeam={null}
+      submittedPick={null}
       isLocked={false}
       atPickLimit={false}
       isActiveWeek={overrides.isActiveWeek ?? true}
@@ -76,7 +77,8 @@ describe('GameCard team logos', () => {
     const { container } = render(
       <GameCard
         game={noSpreadGame}
-        pick={null}
+        stagedTeam={null}
+        submittedPick={null}
         isLocked={false}
         atPickLimit={false}
         isActiveWeek={true}
@@ -96,7 +98,8 @@ describe('GameCard team logos', () => {
     const { container, getByText, queryByText } = render(
       <GameCard
         game={baseGame}
-        pick={null}
+        stagedTeam={null}
+        submittedPick={null}
         isLocked={false}
         atPickLimit={false}
         isActiveWeek={false}
@@ -119,7 +122,8 @@ describe('GameCard team logos', () => {
     const { getAllByText, queryByText } = render(
       <GameCard
         game={baseGame}
-        pick={null}
+        stagedTeam={null}
+        submittedPick={null}
         isLocked={true}
         atPickLimit={false}
         isActiveWeek={false}
@@ -139,7 +143,7 @@ describe('GameCard schedule info', () => {
   it('shows TNF for a Thursday night game', () => {
     const game: Game = { ...baseGame, kickoff_slot: 'thu_night' }
     const { getByText } = render(
-      <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(getByText('TNF')).toBeTruthy()
   })
@@ -147,14 +151,14 @@ describe('GameCard schedule info', () => {
   it('shows SNF for a Sunday night game and MNF for a Monday night game', () => {
     const sunNight: Game = { ...baseGame, kickoff_slot: 'sun_night' }
     const { getByText, unmount } = render(
-      <GameCard game={sunNight} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={sunNight} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(getByText('SNF')).toBeTruthy()
     unmount()
 
     const monNight: Game = { ...baseGame, kickoff_slot: 'mon_night' }
     const { getByText: getByText2 } = render(
-      <GameCard game={monNight} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={monNight} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(getByText2('MNF')).toBeTruthy()
   })
@@ -163,7 +167,7 @@ describe('GameCard schedule info', () => {
     for (const slot of ['sun_early', 'sun_late', 'other'] as const) {
       const game: Game = { ...baseGame, kickoff_slot: slot }
       const { queryByText, unmount } = render(
-        <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+        <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
       )
       expect(queryByText('TNF')).toBeNull()
       expect(queryByText('SNF')).toBeNull()
@@ -175,7 +179,7 @@ describe('GameCard schedule info', () => {
   it('suppresses the TNF badge for a Thursday day game (e.g. Thanksgiving early slate)', () => {
     const game: Game = { ...baseGame, kickoff_slot: 'thu_night', kickoff_time: '2026-11-26T17:30:00Z' }
     const { queryByText } = render(
-      <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(queryByText('TNF')).toBeNull()
   })
@@ -183,14 +187,14 @@ describe('GameCard schedule info', () => {
   it('suppresses the MNF badge for a Monday day game', () => {
     const game: Game = { ...baseGame, kickoff_slot: 'mon_night', kickoff_time: '2026-11-30T18:00:00Z' }
     const { queryByText } = render(
-      <GameCard game={game} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(queryByText('MNF')).toBeNull()
   })
 
   it('displays the kickoff time in Central time, not Eastern', () => {
     const { container } = render(
-      <GameCard game={baseGame} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(container.textContent).toContain('CDT')
     expect(container.textContent).not.toContain('EDT')
@@ -200,13 +204,13 @@ describe('GameCard schedule info', () => {
   it('appends the broadcast network to the kickoff line when present, omits it when absent', () => {
     const withNetwork: Game = { ...baseGame, broadcast_network: 'CBS' }
     const { container: withContainer, unmount } = render(
-      <GameCard game={withNetwork} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={withNetwork} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(withContainer.textContent).toContain('— CBS')
     unmount()
 
     const { container: withoutContainer, getByText } = render(
-      <GameCard game={baseGame} pick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(withoutContainer.textContent).not.toContain('—')
     expect(getByText('Tue, 7:15 PM CDT').textContent).not.toContain('—')
@@ -216,7 +220,7 @@ describe('GameCard schedule info', () => {
 describe('GameCard locked-game interaction rules', () => {
   it('does not dim the unpicked side of a locked game', () => {
     const { container } = render(
-      <GameCard game={baseGame} pick={null} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     const sides = container.querySelectorAll('div[class*="flex-1"]')
     expect(sides[0].className).not.toContain('opacity-40')
@@ -226,7 +230,7 @@ describe('GameCard locked-game interaction rules', () => {
   it('calls onLockedTap when tapping the unpicked side of a locked game', () => {
     let lockedTapCount = 0
     const { container } = render(
-      <GameCard game={baseGame} pick={null} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={() => { throw new Error('onPick should not be called') }} onDeselect={noop} onBlockedTap={noop} onLockedTap={() => { lockedTapCount++ }} />
+      <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={() => { throw new Error('onPick should not be called') }} onDeselect={noop} onBlockedTap={noop} onLockedTap={() => { lockedTapCount++ }} />
     )
     const [awaySide] = container.querySelectorAll('div[class*="flex-1"]')
     awaySide.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -235,9 +239,9 @@ describe('GameCard locked-game interaction rules', () => {
 
   it('does nothing (no toast) when tapping the already-picked side of a locked game', () => {
     let lockedTapCount = 0
-    const pick: Pick = { game_id: baseGame.id, picked_team: baseGame.away_team, result: 'pending' }
+    const submittedPick: Pick = { game_id: baseGame.id, picked_team: baseGame.away_team, result: 'pending' }
     const { container } = render(
-      <GameCard game={baseGame} pick={pick} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={() => { throw new Error('onDeselect should not be called') }} onBlockedTap={noop} onLockedTap={() => { lockedTapCount++ }} />
+      <GameCard game={baseGame} stagedTeam={baseGame.away_team} submittedPick={submittedPick} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={() => { throw new Error('onDeselect should not be called') }} onBlockedTap={noop} onLockedTap={() => { lockedTapCount++ }} />
     )
     const [awaySide] = container.querySelectorAll('div[class*="flex-1"]')
     awaySide.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -245,14 +249,34 @@ describe('GameCard locked-game interaction rules', () => {
   })
 
   it('shows a lock badge on the picked team logo when locked, and none when unlocked', () => {
-    const pick: Pick = { game_id: baseGame.id, picked_team: baseGame.away_team, result: 'pending' }
+    const submittedPick: Pick = { game_id: baseGame.id, picked_team: baseGame.away_team, result: 'pending' }
     const { container, rerender } = render(
-      <GameCard game={baseGame} pick={pick} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={baseGame} stagedTeam={baseGame.away_team} submittedPick={submittedPick} isLocked={true} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(container.querySelector('svg')).toBeTruthy()
 
     rerender(
-      <GameCard game={baseGame} pick={pick} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+      <GameCard game={baseGame} stagedTeam={baseGame.away_team} submittedPick={submittedPick} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+    )
+    expect(container.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('GameCard staged vs submitted', () => {
+  it('shows the staged (not submitted) team as selected before lock, independent of the last submitted pick', () => {
+    const submittedPick: Pick = { game_id: baseGame.id, picked_team: 'SEA', result: 'pending' }
+    const { container } = render(
+      <GameCard game={baseGame} stagedTeam="NE" submittedPick={submittedPick} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
+    )
+    const [awaySide, homeSide] = container.querySelectorAll('div[class*="flex-1"]')
+    expect(awaySide.className).toContain('bg-purple-700') // NE is away — staged, should be highlighted
+    expect(homeSide.className).not.toContain('bg-purple-700') // SEA is home — submitted, but not currently staged
+  })
+
+  it('shows no lock badge for a game whose day is unlocked, even with a submitted pick', () => {
+    const submittedPick: Pick = { game_id: baseGame.id, picked_team: baseGame.away_team, result: 'pending' }
+    const { container } = render(
+      <GameCard game={baseGame} stagedTeam={baseGame.away_team} submittedPick={submittedPick} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
     expect(container.querySelector('svg')).toBeNull()
   })
