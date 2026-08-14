@@ -34,7 +34,7 @@ export function SubmitBar({ slots, isDirty, isSubmitting, onSubmit }: SubmitBarP
           const ringColor = slot.isSynced ? 'border-green' : 'border-purple-700'
           const badgeColor = slot.isSynced ? 'bg-green text-white' : 'bg-purple-700 text-white'
           return (
-            <span key={slot.game.id} className={`relative w-9 h-9 rounded-full border-2 ${ringColor} flex-shrink-0 bg-white overflow-hidden`}>
+            <span key={slot.game.id} className={`relative w-9 h-9 rounded-full border-2 ${ringColor} flex-shrink-0 bg-white`}>
               <img
                 src={teamLogoUrl(slot.team)}
                 alt=""

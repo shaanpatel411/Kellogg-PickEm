@@ -73,22 +73,20 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
     setLockedDayKeys(prev => ({ ...prev, [dayKey]: true }))
 
     const gamesInDay = games.filter(g => getKickoffDayKey(g.kickoff_time) === dayKey)
+    const nextStaged = new Map(stagedPicks)
     let revertedAny = false
 
-    setStagedPicks(prev => {
-      const next = new Map(prev)
-      for (const game of gamesInDay) {
-        const submittedTeam = submittedPicks[game.id]?.picked_team
-        if (next.get(game.id) !== submittedTeam) {
-          revertedAny = true
-          if (submittedTeam) next.set(game.id, submittedTeam)
-          else next.delete(game.id)
-        }
+    for (const game of gamesInDay) {
+      const submittedTeam = submittedPicks[game.id]?.picked_team
+      if (nextStaged.get(game.id) !== submittedTeam) {
+        revertedAny = true
+        if (submittedTeam) nextStaged.set(game.id, submittedTeam)
+        else nextStaged.delete(game.id)
       }
-      return next
-    })
+    }
 
     if (revertedAny) {
+      setStagedPicks(nextStaged)
       showToast('A pick locked before you submitted it, so it was removed.')
     }
   }
@@ -158,7 +156,10 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
   // 5-pick-limit check (which re-queries current DB state per call) to stay
   // correct across a batch that both removes and adds picks.
   async function handleSubmit() {
-    const toDelete = Object.keys(submittedPicks).filter(gameId => !stagedPicks.has(gameId))
+    const submittingWeekId = currentWeekId
+    const toDelete = Object.keys(submittedPicks).filter(
+      gameId => !stagedPicks.has(gameId) && games.some(g => g.id === gameId)
+    )
     const toPatch = [...stagedPicks.entries()].filter(
       ([gameId, team]) => team !== submittedPicks[gameId]?.picked_team
     )
@@ -167,59 +168,84 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
 
     setIsSubmitting(true)
 
-    const deletedIds: string[] = []
-    const patchedPicks: Pick[] = []
-    const failedIds: string[] = []
+    try {
+      const deletedIds: string[] = []
+      const patchedPicks: Pick[] = []
+      const failedIds: string[] = []
+      let hadUnexpectedFailure = false
 
-    for (const gameId of toDelete) {
-      const res = await fetch('/api/picks', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId, weekId: currentWeekId }),
-      })
-      if (res.ok) deletedIds.push(gameId)
-      else failedIds.push(gameId)
-    }
-
-    for (const [gameId, team] of toPatch) {
-      const res = await fetch('/api/picks', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId, weekId: currentWeekId, pickedTeam: team }),
-      })
-      if (res.ok) {
-        const { pick } = await res.json()
-        patchedPicks.push(pick)
-      } else {
-        failedIds.push(gameId)
-      }
-    }
-
-    setSubmittedPicks(prev => {
-      const next = { ...prev }
-      for (const gameId of deletedIds) delete next[gameId]
-      for (const pick of patchedPicks) next[pick.game_id] = pick
-      return next
-    })
-
-    if (failedIds.length > 0) {
-      setStagedPicks(prev => {
-        const next = new Map(prev)
-        for (const gameId of failedIds) {
-          const submitted = submittedPicks[gameId]
-          if (submitted) next.set(gameId, submitted.picked_team)
-          else next.delete(gameId)
+      for (const gameId of toDelete) {
+        try {
+          const res = await fetch('/api/picks', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, weekId: submittingWeekId }),
+          })
+          if (res.ok) deletedIds.push(gameId)
+          else {
+            failedIds.push(gameId)
+            if (res.status !== 423) hadUnexpectedFailure = true
+          }
+        } catch {
+          failedIds.push(gameId)
+          hadUnexpectedFailure = true
         }
+      }
+
+      for (const [gameId, team] of toPatch) {
+        try {
+          const res = await fetch('/api/picks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, weekId: submittingWeekId, pickedTeam: team }),
+          })
+          if (res.ok) {
+            const { pick } = await res.json()
+            patchedPicks.push(pick)
+          } else {
+            failedIds.push(gameId)
+            if (res.status !== 423) hadUnexpectedFailure = true
+          }
+        } catch {
+          failedIds.push(gameId)
+          hadUnexpectedFailure = true
+        }
+      }
+
+      // If the user switched weeks while this submit was still in flight,
+      // the results above belong to a week that's no longer being
+      // displayed — discard them rather than merging into the newly-loaded
+      // week's state.
+      if (currentWeekId !== submittingWeekId) return
+
+      setSubmittedPicks(prev => {
+        const next = { ...prev }
+        for (const gameId of deletedIds) delete next[gameId]
+        for (const pick of patchedPicks) next[pick.game_id] = pick
         return next
       })
-      showToast(
-        failedIds.length === 1
-          ? "1 pick couldn't be submitted — its game just locked"
-          : `${failedIds.length} picks couldn't be submitted — their games just locked`
-      )
-    }
 
-    setIsSubmitting(false)
+      if (failedIds.length > 0) {
+        setStagedPicks(prev => {
+          const next = new Map(prev)
+          for (const gameId of failedIds) {
+            const submitted = submittedPicks[gameId]
+            if (submitted) next.set(gameId, submitted.picked_team)
+            else next.delete(gameId)
+          }
+          return next
+        })
+        showToast(
+          hadUnexpectedFailure
+            ? "Some picks couldn't be submitted — please try again"
+            : failedIds.length === 1
+              ? "1 pick couldn't be submitted — its game just locked"
+              : `${failedIds.length} picks couldn't be submitted — their games just locked`
+        )
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const atPickLimit = stagedPicks.size >= 5
@@ -246,7 +272,7 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
         onWeekLabelClick={() => setDrawerOpen(true)}
       />
 
-      <div className="flex flex-col gap-2 p-3 pb-[74px] flex-1">
+      <div className="flex flex-col gap-2 p-3 pb-[145px] flex-1">
         {games.length === 0 ? (
           <p className="text-center text-gray-9 text-sm mt-8">
             No games for this week yet. Check back soon.
