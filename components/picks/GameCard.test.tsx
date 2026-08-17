@@ -12,7 +12,6 @@ const baseGame: Game = {
   away_team_full: 'Patriots',
   spread: -3.5,
   kickoff_time: '2026-09-09T00:15:00Z',
-  kickoff_slot: null,
   broadcast_network: null,
   status: 'scheduled',
   final_home_score: null,
@@ -139,59 +138,7 @@ describe('GameCard team logos', () => {
   })
 })
 
-describe('GameCard schedule info', () => {
-  it('shows TNF for a Thursday night game', () => {
-    const game: Game = { ...baseGame, kickoff_slot: 'thu_night' }
-    const { getByText } = render(
-      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-    )
-    expect(getByText('TNF')).toBeTruthy()
-  })
-
-  it('shows SNF for a Sunday night game and MNF for a Monday night game', () => {
-    const sunNight: Game = { ...baseGame, kickoff_slot: 'sun_night' }
-    const { getByText, unmount } = render(
-      <GameCard game={sunNight} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-    )
-    expect(getByText('SNF')).toBeTruthy()
-    unmount()
-
-    const monNight: Game = { ...baseGame, kickoff_slot: 'mon_night' }
-    const { getByText: getByText2 } = render(
-      <GameCard game={monNight} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-    )
-    expect(getByText2('MNF')).toBeTruthy()
-  })
-
-  it('shows no primetime badge for a Sunday early, Sunday late, or other game', () => {
-    for (const slot of ['sun_early', 'sun_late', 'other'] as const) {
-      const game: Game = { ...baseGame, kickoff_slot: slot }
-      const { queryByText, unmount } = render(
-        <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-      )
-      expect(queryByText('TNF')).toBeNull()
-      expect(queryByText('SNF')).toBeNull()
-      expect(queryByText('MNF')).toBeNull()
-      unmount()
-    }
-  })
-
-  it('suppresses the TNF badge for a Thursday day game (e.g. Thanksgiving early slate)', () => {
-    const game: Game = { ...baseGame, kickoff_slot: 'thu_night', kickoff_time: '2026-11-26T17:30:00Z' }
-    const { queryByText } = render(
-      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-    )
-    expect(queryByText('TNF')).toBeNull()
-  })
-
-  it('suppresses the MNF badge for a Monday day game', () => {
-    const game: Game = { ...baseGame, kickoff_slot: 'mon_night', kickoff_time: '2026-11-30T18:00:00Z' }
-    const { queryByText } = render(
-      <GameCard game={game} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
-    )
-    expect(queryByText('MNF')).toBeNull()
-  })
-
+describe('GameCard kickoff time and network', () => {
   it('displays the kickoff time in Central time, not Eastern', () => {
     const { container } = render(
       <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
@@ -201,19 +148,20 @@ describe('GameCard schedule info', () => {
     expect(container.textContent).not.toContain('EST')
   })
 
-  it('appends the broadcast network to the kickoff line when present, omits it when absent', () => {
+  it('shows a network badge when broadcast_network is present', () => {
     const withNetwork: Game = { ...baseGame, broadcast_network: 'CBS' }
-    const { container: withContainer, unmount } = render(
+    const { getByText } = render(
       <GameCard game={withNetwork} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
-    expect(withContainer.textContent).toContain('— CBS')
-    unmount()
+    expect(getByText('CBS')).toBeTruthy()
+  })
 
-    const { container: withoutContainer, getByText } = render(
+  it('shows no network badge when broadcast_network is absent, and no longer appends it to the kickoff line', () => {
+    const { container, getByText } = render(
       <GameCard game={baseGame} stagedTeam={null} submittedPick={null} isLocked={false} atPickLimit={false} isActiveWeek={true} onPick={noop} onDeselect={noop} onBlockedTap={noop} onLockedTap={noop} />
     )
-    expect(withoutContainer.textContent).not.toContain('—')
-    expect(getByText('Tue, 7:15 PM CDT').textContent).not.toContain('—')
+    expect(container.textContent).not.toContain('—')
+    expect(getByText('Tue, 7:15 PM CDT')).toBeTruthy()
   })
 })
 

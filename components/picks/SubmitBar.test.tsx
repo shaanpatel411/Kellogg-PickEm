@@ -13,7 +13,6 @@ const baseGame: Game = {
   away_team_full: 'Patriots',
   spread: -3.5,
   kickoff_time: '2026-09-09T00:15:00Z',
-  kickoff_slot: null,
   broadcast_network: null,
   status: 'scheduled',
   final_home_score: null,

@@ -44,7 +44,7 @@ export default async function PicksPage() {
   const [gamesRes, picksRes] = await Promise.all([
     supabase
       .from('games')
-      .select('id, home_team, away_team, home_team_full, away_team_full, spread, kickoff_time, kickoff_slot, broadcast_network, status, final_home_score, final_away_score')
+      .select('id, home_team, away_team, home_team_full, away_team_full, spread, kickoff_time, broadcast_network, status, final_home_score, final_away_score')
       .eq('week_id', activeWeek.id)
       .order('kickoff_time', { ascending: true }),
     supabase
