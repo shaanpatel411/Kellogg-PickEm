@@ -127,4 +127,31 @@ describe('WeekDrawer', () => {
     )
     expect(document.activeElement).toBe(trigger)
   })
+
+  it('wraps Shift+Tab from the dialog container (before any button has focus) to the last button', () => {
+    const { getAllByRole } = render(
+      <WeekDrawer weeks={makeWeeks()} currentWeekId="w2" currentWeekSubmittedCount={2} isOpen={true} onClose={noop} onSelectWeek={noop} />
+    )
+    const buttons = getAllByRole('button')
+    // Focus is on the dialog container itself at this point (verified by
+    // an earlier test) — do not .focus() anything else first.
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(buttons[buttons.length - 1])
+  })
+
+  it('does not re-focus the dialog when onClose changes identity but isOpen does not', () => {
+    const { getAllByRole, rerender } = render(
+      <WeekDrawer weeks={makeWeeks()} currentWeekId="w2" currentWeekSubmittedCount={2} isOpen={true} onClose={() => {}} onSelectWeek={noop} />
+    )
+    const buttons = getAllByRole('button')
+    buttons[2].focus()
+    expect(document.activeElement).toBe(buttons[2])
+
+    // Re-render with a brand-new onClose identity, isOpen unchanged — this
+    // simulates the parent re-rendering for an unrelated reason.
+    rerender(
+      <WeekDrawer weeks={makeWeeks()} currentWeekId="w2" currentWeekSubmittedCount={2} isOpen={true} onClose={() => {}} onSelectWeek={noop} />
+    )
+    expect(document.activeElement).toBe(buttons[2])
+  })
 })

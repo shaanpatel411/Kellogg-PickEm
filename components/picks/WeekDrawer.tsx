@@ -22,6 +22,8 @@ export function WeekDrawer({ weeks, currentWeekId, currentWeekSubmittedCount, is
   const overlayRef = useRef<HTMLDivElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
 
   useEffect(() => {
     if (!isOpen) return
@@ -31,7 +33,7 @@ export function WeekDrawer({ weeks, currentWeekId, currentWeekSubmittedCount, is
 
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
@@ -41,7 +43,8 @@ export function WeekDrawer({ weeks, currentWeekId, currentWeekSubmittedCount, is
         if (!focusables || focusables.length === 0) return
         const first = focusables[0]
         const last = focusables[focusables.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
+        const isContainer = document.activeElement === sheetRef.current
+        if (e.shiftKey && (isContainer || document.activeElement === first)) {
           e.preventDefault()
           last.focus()
         } else if (!e.shiftKey && document.activeElement === last) {
@@ -55,7 +58,7 @@ export function WeekDrawer({ weeks, currentWeekId, currentWeekSubmittedCount, is
       window.removeEventListener('keydown', onKey)
       previouslyFocusedRef.current?.focus()
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 
