@@ -263,12 +263,14 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
     Object.keys(submittedPicks).some(gameId => !stagedPicks.has(gameId)) ||
     [...stagedPicks.entries()].some(([gameId, team]) => team !== submittedPicks[gameId]?.picked_team)
 
+  const submittedCount = Object.keys(submittedPicks).length
+
   return (
     <div className="w-full max-w-[430px] mx-auto min-h-screen flex flex-col">
       <PicksHeader
         weekNumber={currentWeek?.week_number ?? 0}
         seasonYear={currentWeek?.season_year ?? new Date().getFullYear()}
-        submittedCount={Object.keys(submittedPicks).length}
+        submittedCount={submittedCount}
         onWeekLabelClick={() => setDrawerOpen(true)}
       />
 
@@ -316,6 +318,7 @@ export function PicksScreen({ initialWeekId, activeWeekId, initialGames, initial
       <WeekDrawer
         weeks={weeks}
         currentWeekId={currentWeekId}
+        currentWeekSubmittedCount={submittedCount}
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSelectWeek={loadWeek}
